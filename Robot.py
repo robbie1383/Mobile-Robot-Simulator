@@ -1,12 +1,24 @@
+import math
 import random
 import numpy as np
 
-class Robot():
+
+# calculate the slope of the line
+def slope(wall):
+    x1, y1 = wall[0]
+    x2, y2 = wall[1]
+    if x1 == x2:
+        return math.inf
+    else:
+        return -1 / np.tan((y2 - y1) / (x2 - x1))
+
+
+class Robot:
 
     def __init__(self, WIDTH, HEIGHT, size):
         self.WIDTH = WIDTH
         self.HEIGHT = HEIGHT
-        self.radius = int(size/2)
+        self.radius = int(size / 2)
 
         self.x = random.randint(4 + self.radius, WIDTH - self.radius - 4)
         self.y = random.randint(4 + self.radius, HEIGHT - self.radius - 4)
@@ -17,9 +29,10 @@ class Robot():
         self.Vl = 0
         self.Vr = 0
         self.theta = 0
-        self.speed = 0.5
+        self.speed = 0.05
+        self.closest_wall = []
 
-    def move(self, movement):
+    def move(self, movement, delta_t):
         if self.hitWall():
             # Add collision check
             print("hit wall")
@@ -47,16 +60,17 @@ class Robot():
                 R = 10000
                 w = 0
             else:
-                R = self.radius * (self.Vl + self.Vr)/(self.Vr - self.Vl)
-                w = (self.Vr - self.Vl)/(self.radius*2)
+                R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
+                w = (self.Vr - self.Vl) / (self.radius * 2)
 
             # Compute ICC
             ICC = [self.x - R * np.sin(self.theta), self.y + R * np.cos(self.theta)]
             result = np.transpose(np.matmul(
-                np.array([[np.cos(w), -np.sin(w), 0],
-                         [np.sin(w), np.cos(w), 0],
-                        [0, 0, 1]]),
-                np.transpose(np.array([self.x - ICC[0], self.y - ICC[1], self.theta]))) + np.array([ICC[0], ICC[1], w])).transpose()
+                np.array([[np.cos(w * delta_t), -np.sin(w * delta_t), 0],
+                          [np.sin(w * delta_t), np.cos(w * delta_t), 0],
+                          [0, 0, 1]]),
+                np.transpose(np.array([self.x - ICC[0], self.y - ICC[1], self.theta]))) + np.array(
+                [ICC[0], ICC[1], w * delta_t])).transpose()
 
             # Transfer results from the ICC computation
             self.x = result[0]
@@ -75,3 +89,22 @@ class Robot():
         # Check if the robot is hitting the wall
         return self.x <= 5 + self.radius or self.x >= self.WIDTH - self.radius - 5 \
                or self.y <= 5 + self.radius or self.y >= self.HEIGHT - self.radius - 5
+
+    def detectCollision(self, outer_wall, inner_wall):
+        distance_to_wall = []
+        for i in range(len(outer_wall) - 1):
+            a, b = outer_wall[i]
+            c, d = outer_wall[i + 1]
+            if a == c:
+                distance = abs(self.x - a)
+                distance_to_wall.append(distance)
+            else:
+                distance = abs(self.y - b)
+                distance_to_wall.append(distance)
+
+        ds = distance_to_wall.copy()
+        ds.sort()
+        shortest = ds[0]
+        index = distance_to_wall.index(ds[0])
+        self.closest_wall = [outer_wall[index], outer_wall[index + 1]]
+        return shortest
