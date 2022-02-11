@@ -1,6 +1,7 @@
 import math
 import random
 import numpy as np
+import pygame.math
 from pygame.math import Vector2
 
 # calculate the slope of the line
@@ -103,17 +104,73 @@ class Robot:
 
     def distanceToSensors(self, outer_wall, inner_wall):
         dist=[]
+        print("length",Vector2.length(self.sensors[2]))
+        print("coordinates", self.sensors[0], " ", self.sensors[0])
+        print(self.frontX," ", self.frontY)
+        print(self.x," ",self.y)
+        print(self.radius)
         for sensor in self.sensors:
             out_distance=[]
             in_distance = []
-            for out in outer_wall:
-                out_distance.append(np.linalg.norm(sensor,out))   # Distance from sensors to outer walls
-            min_dist_out_wall=min(out_distance)
-            for inn in inner_wall:
-                in_distance.append(np.linalg.norm(sensor,inn))  # Distance from sensors to inner walls
-            min_dist_in_wall=min(in_distance)
+            for i in range (len(outer_wall)-1):
+                #Out wall line
+                Point1 = [outer_wall[i][0], outer_wall[i][1]]
+                Point2 = [outer_wall[i+1][0], outer_wall[i+1][1]]
+
+
+                a1 = Point2[1]-Point1[1]
+                b1 = Point1[0] + Point2[0]
+                c1 = a1*Point1[0]+b1*Point1[1]
+                
+                #Sensor line
+                Point3 = [self.x, self.y]
+                Point4 = [sensor.x, sensor.y]
+                
+                a2 = Point4[1]-Point3[1]
+                b2 = Point3[0] + Point4[0]
+                c2 = a2*Point3[0]+b2*Point3[1]
+                
+                determinant = a1*b2 - a2*b1
+                
+                if(determinant!=0): #if there is an intersectioin
+                    new_X = (b2*c1 - b1*c2)/determinant # intersection coordinate
+                    new_Y = (a1*c2 - a2*c1)/determinant
+                    out_distance.append(math.sqrt((new_X - sensor.x)**2 + (new_Y - sensor.y)**2 ))
+
+                
+            print("out distance", out_distance)
+            min_dist_out_wall=min(out_distance) # CLoser wall to sensor 
+            
+            for i in range (len(inner_wall)-1):
+                #  In wall line
+                Point1 = [inner_wall[i][0], inner_wall[i][1]]
+                Point2 = [inner_wall[i+1][0], inner_wall[i+1][1]]
+                
+                a1 = Point2[1]-Point1[1]
+                b1 = Point1[0] + Point2[0]
+                c1 = a1*Point1[0]+b1*Point1[1]
+                
+                #Sensor line
+                Point3 = [self.x, self.y]
+                Point4 = [sensor.x, sensor.y]
+                
+                a2 = Point4[1]-Point3[1]
+                b2 = Point3[0] + Point4[0]
+                c2 = a2*Point3[0]+b2*Point3[1]
+                
+                determinant = a1*b2 - a2*b1
+                
+                if determinant != 0:  #if there is an intersectioin
+                    new_X=(b2*c1 - b1*c2)/determinant
+                    new_Y=(a1*c2 - a2*c1)/determinant
+                    in_distance.append(math.sqrt( (new_X - sensor.x)**2 + (new_Y - sensor.y)**2 ))
+
+            print("in distance", in_distance)
+            min_dist_in_wall=min(in_distance)  # CLoser wall to sensor       
 
             if min_dist_out_wall> min_dist_in_wall:
+                '''if the distance to closer out wall is bigger than the distance 
+                to the closer in wall, then keep the in wall distance'''
                 dist.append(min_dist_in_wall)
             else:
                 dist.append(min_dist_out_wall)

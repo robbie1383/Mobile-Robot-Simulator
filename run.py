@@ -88,6 +88,7 @@ class Simulation:
                     keys[pygame.K_t], keys[pygame.K_g]]
         velocities = self.robot.move(movement, delta_t)
         distance = self.robot.detectCollision(self.outer_wall, self.inner_wall)
+        dist= self.robot.distanceToSensors(self.outer_wall,self.inner_wall)
         return movement, velocities
 
     def stop(self):
