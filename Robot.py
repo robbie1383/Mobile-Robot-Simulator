@@ -138,7 +138,7 @@ class Robot:
                     out_distance.append(math.sqrt((new_X - sensor.x)**2 + (new_Y - sensor.y)**2 ))
 
                 
-            print("out distance", out_distance)
+            #print("out distance", out_distance)
             min_dist_out_wall=min(out_distance) # CLoser wall to sensor 
             
             for i in range (len(inner_wall)-1):
@@ -165,7 +165,7 @@ class Robot:
                     new_Y=(a1*c2 - a2*c1)/determinant
                     in_distance.append(math.sqrt( (new_X - sensor.x)**2 + (new_Y - sensor.y)**2 ))
 
-            print("in distance", in_distance)
+            #print("in distance", in_distance)
             min_dist_in_wall=min(in_distance)  # CLoser wall to sensor       
 
             if min_dist_out_wall> min_dist_in_wall:
@@ -174,7 +174,7 @@ class Robot:
                 dist.append(min_dist_in_wall)
             else:
                 dist.append(min_dist_out_wall)
-
+        print("Smallest distance for all sensors", dist)
         return dist
     def rotate(self, angle):
         # Rotate the robot at a certain angle from the x-axis
