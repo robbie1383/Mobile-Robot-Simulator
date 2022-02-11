@@ -104,11 +104,11 @@ class Robot:
 
     def distanceToSensors(self, outer_wall, inner_wall):
         dist=[]
-        print("length",Vector2.length(self.sensors[2]))
-        print("coordinates", self.sensors[0], " ", self.sensors[0])
-        print(self.frontX," ", self.frontY)
-        print(self.x," ",self.y)
-        print(self.radius)
+        #print("length",Vector2.length(self.sensors[2]))
+        #print("coordinates", self.sensors[0], " ", self.sensors[0])
+        #print(self.frontX," ", self.frontY)
+        #print(self.x," ",self.y)
+        #print(self.radius)
         for sensor in self.sensors:
             out_distance=[]
             in_distance = []
