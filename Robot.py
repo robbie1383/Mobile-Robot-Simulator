@@ -37,7 +37,7 @@ class Robot:
         frontSensor1 = Vector2(self.frontX, self.frontY)
         self.sensors.append(frontSensor1)
         angle=0
-        for i in range(12):
+        for i in range(11):
             angle=angle+30
             self.sensors.append(frontSensor1.rotate(angle))
 
