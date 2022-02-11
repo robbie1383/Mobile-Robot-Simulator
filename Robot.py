@@ -175,7 +175,7 @@ class Robot:
             else:
                 dist.append(min_dist_out_wall)
 
-
+        return dist
     def rotate(self, angle):
         # Rotate the robot at a certain angle from the x-axis
         self.frontX = self.x + np.cos(angle) * self.radius
