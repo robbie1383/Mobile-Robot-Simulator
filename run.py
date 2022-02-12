@@ -5,9 +5,9 @@ import pygame
 
 from Robot import Robot
 
-SEV = 15  # SCREEN_EDGE_VACANCY
-WIDTH = 800
-HEIGHT = 800
+SEV = 35  # SCREEN_EDGE_VACANCY
+WIDTH = 835
+HEIGHT = 835
 
 # A list of RGB values for the colours used in the game.
 WHITE = (255, 255, 255)
@@ -83,11 +83,12 @@ class Simulation:
         pygame.display.flip()
 
     def run(self):
-        delta_t = 0.01
+        delta_t = 1
         while self.running:
-            self.clock.tick(round(1 / delta_t))
+            self.clock.tick(round(60 / delta_t))
             keys, velocities = self.update(delta_t)
             self.show(keys, velocities)
+            delta_t = velocities[3]
 
     def update(self, delta_t):
         # Quit the simulation

@@ -11,9 +11,20 @@ def slope(wall):
     x1, y1 = wall[0]
     x2, y2 = wall[1]
     if x1 == x2:
-        return math.inf
+        return 90
+    elif y1 == y2:
+        return 0
     else:
-        return -1 / np.tan((y2 - y1) / (x2 - x1))
+        return math.atan((y2 - y1) / (x2 - x1)) * 180 / math.pi
+
+
+def right_intersection(point, wall_point1, wall_point2, sensor_start, sensor_end):
+    x, y = point
+    right = (x - wall_point1[0]) * (x - wall_point2[0]) <= 0 and \
+            (y - wall_point1[1]) * (y - wall_point2[1]) <= 0 and \
+            (x - sensor_start[0]) * (sensor_end[0] - sensor_start[0]) >= 0 and \
+            (y - sensor_start[1]) * (sensor_end[1] - sensor_start[1]) >= 0
+    return right
 
 
 class Robot:
@@ -26,14 +37,15 @@ class Robot:
         self.Vl = 0
         self.Vr = 0
         self.theta = 0
-        self.speed = 0.5
+        self.speed = 0.01
         self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
-        self.distance_limit = size
+        self.safe_distance = 50
 
     def initPosition(self, outer_wall, inner_wall):
         x = random.randint(outer_wall[0][0] + self.radius, outer_wall[2][0] - self.radius)
         y = random.randint(outer_wall[0][1] + self.radius, outer_wall[2][1] - self.radius)
-        while (inner_wall[0][0] < x < inner_wall[2][0]) and (inner_wall[0][1] < y < inner_wall[2][1]):
+        while (inner_wall[0][0] - self.radius < x < inner_wall[2][0] + self.radius) and (
+                inner_wall[0][1] - self.radius < y < inner_wall[2][1] + self.radius):
             x = random.randint(outer_wall[0][0] + self.radius, outer_wall[2][0] - self.radius)
             y = random.randint(outer_wall[0][1] + self.radius, outer_wall[2][1] - self.radius)
         return x, y
@@ -78,10 +90,36 @@ class Robot:
                 [ICC[0], ICC[1], w * delta_t])).transpose()
             # update  sensors
             self.sensors, walls = self.distanceToSensors(outer_wall, inner_wall)
-            self.detectCollision(self.sensors, walls, delta_t)
-            # Transfer results from the ICC computation
-            self.x = result[0]
-            self.y = result[1]
+            delta_t = self.detectCollision(delta_t)
+
+            next_x = result[0]
+            next_y = result[1]
+            sensor_copy = self.sensors.copy()
+            sensor_copy.sort()
+            collision_dis = sensor_copy[0]
+            wall_index = self.sensors.index(collision_dis)
+            two_collisions = False
+            second_wall_index = 0
+            for i in range(len(sensor_copy)):
+                if i != wall_index and sensor_copy[i] - collision_dis < 0.000000001:
+                    second_wall_index = i
+                    two_collisions = True
+            print(two_collisions)
+            distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y,
+                                                                                      walls[wall_index])
+            if collision_dis < distance_vertical or collision_dis < 5:
+                next_x, next_y = self.parallelMove(distance_parallel, theta_wall)
+                # if two_collisions:
+                #     distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y,
+                #                                                                               walls[second_wall_index])
+                #     if distance_parallel != 0:
+                #         next_x, next_y = self.parallelMove(distance_parallel, theta_wall)
+                #     else:
+                #         next_x = self.x
+                #         next_y = self.y
+                # Transfer results from the ICC computation
+            self.x = next_x
+            self.y = next_y
             self.theta = result[2]
             self.frontX, self.frontY = self.rotate(self.theta, self.radius)
 
@@ -98,10 +136,10 @@ class Robot:
                 '''if the distance to closer out wall is bigger than the distance 
                 to the closer in wall, then keep the in wall distance'''
                 dist.append(min_dist_in_wall)
-                walls.append(inner_wall[wall_index_2])
+                walls.append([inner_wall[wall_index_2], inner_wall[wall_index_2 + 1]])
             else:
                 dist.append(min_dist_out_wall)
-                walls.append(outer_wall[wall_index_1])
+                walls.append([outer_wall[wall_index_1], outer_wall[wall_index_1 + 1]])
             angle += math.pi / 6
         return dist, walls
 
@@ -111,22 +149,7 @@ class Robot:
         front_y = self.y + np.sin(angle) * r
         return front_x, front_y
 
-    def detectCollision(self, dist, wall, delta_t):
-        collision_distance = min(dist)
-        collision_wall = dist.index(collision_distance)
-        if collision_distance < self.distance_limit:
-            delta_t = delta_t * 2
-        return delta_t
-
     def distance(self, wall, angle):
-        def right_intersection(point, wall_point1, wall_point2, sensor_start, sensor_end):
-            x, y = point
-            right = (x - wall_point1[0]) * (x - wall_point2[0]) <= 0 and \
-                    (y - wall_point1[1]) * (y - wall_point2[1]) <= 0 and \
-                    (x - sensor_start[0]) * (sensor_end[0] - sensor_start[0]) >= 0 and \
-                    (y - sensor_start[1]) * (sensor_end[1] - sensor_start[1]) >= 0
-            return right
-
         dist = []
         for i in range(len(wall) - 1):
             # Out wall line
@@ -145,7 +168,7 @@ class Robot:
             c2 = a2 * point3[0] + b2 * point3[1]
             determinant = a1 * b2 - a2 * b1
 
-            if determinant != 0:  # if there is an intersectioin
+            if abs(determinant) > 0.00000001:  # if there is an intersectioin
                 new_x = -(b1 * c2 - b2 * c1) / determinant  # intersection coordinate
                 new_y = (a1 * c2 - a2 * c1) / determinant
                 if abs(round(new_x) - new_x) < 0.00000001:
@@ -162,3 +185,32 @@ class Robot:
             min_dist_out_wall = 1500
             wall_index = 0
         return min_dist_out_wall, wall_index
+        
+    def decomposeMovement(self, move_x, move_y, wall):
+        theta_wall = slope(wall)
+        theta_move = slope([[self.x, self.y], [move_x, move_y]])
+        theta_wall_move = theta_move - theta_wall
+        move_distance = ((move_x - self.x) ** 2 + (move_y - self.y) ** 2) ** 0.5
+        distance_parallel = abs(move_distance * np.sin(theta_wall_move))
+        distance_vertical = move_distance * np.cos(theta_wall_move)
+        return distance_parallel, distance_vertical, theta_wall
+
+    def parallelMove(self, distance_parallel, theta_wall):
+        x = self.x
+        y = self.y
+        if theta_wall == 90:
+            y = self.y + distance_parallel
+        elif theta_wall == 0:
+            x = self.x + distance_parallel
+        else:
+            y = self.y + distance_parallel * np.cos(theta_wall * math.pi / 180)
+            x = self.x + distance_parallel * np.sin(theta_wall * math.pi / 180)
+        return x, y
+
+    def detectCollision(self, delta_t):
+        collision_dis = min(self.sensors)
+        if collision_dis < self.safe_distance:
+            # keep delta_t more than 0.1
+            if delta_t > 0.1:
+                delta_t = (collision_dis / self.safe_distance)
+        return delta_t
