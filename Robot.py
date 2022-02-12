@@ -61,6 +61,9 @@ class Robot:
             if self.Vr == self.Vl:
                 R = 10000
                 w = 0
+                self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
+                self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+
             else:
                 R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
                 w = (self.Vr - self.Vl) / (self.radius * 2)

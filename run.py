@@ -51,8 +51,8 @@ class Simulation:
         angle = copy.copy(self.robot.theta)
         sensors = self.robot.sensors
         for i in range(12):
-            x, y = self.robot.rotate(angle, self.robot.radius + 10)
-            x = x - 8
+            x, y = self.robot.rotate(angle, self.robot.radius + 12)
+            x = x - 10
             y = y - 8
             self.screen.blit(self.sensor_font.render(str(round(sensors[i])), True, BLACK), (x, y))
             angle += math.pi / 6
@@ -83,7 +83,7 @@ class Simulation:
         pygame.display.flip()
 
     def run(self):
-        delta_t = 0.2
+        delta_t = 0.01
         while self.running:
             self.clock.tick(round(1 / delta_t))
             keys, velocities = self.update(delta_t)
