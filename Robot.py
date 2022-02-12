@@ -40,6 +40,7 @@ class Robot:
         self.speed = 0.01
         self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
         self.safe_distance = 50
+        self.stop = False
 
     def initPosition(self, outer_wall, inner_wall):
         x = random.randint(outer_wall[0][0] + self.radius, outer_wall[2][0] - self.radius)
@@ -68,14 +69,13 @@ class Robot:
 
         # If it's moving
         if self.Vr != 0 or self.Vl != 0:
-
             # Make sure not to get a division by zero when velocities are the same
             if self.Vr == self.Vl:
                 R = 10000
                 w = 0
-                self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
-                self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
-
+                if not self.stop:
+                    self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
+                    self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
             else:
                 R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
                 w = (self.Vr - self.Vl) / (self.radius * 2)
@@ -90,34 +90,48 @@ class Robot:
                 [ICC[0], ICC[1], w * delta_t])).transpose()
             # update  sensors
             self.sensors, walls = self.distanceToSensors(outer_wall, inner_wall)
-            delta_t = self.detectCollision(delta_t)
-
+            delta_t, collision = self.detectCollision(delta_t)
             next_x = result[0]
             next_y = result[1]
-            sensor_copy = self.sensors.copy()
-            sensor_copy.sort()
-            collision_dis = sensor_copy[0]
-            wall_index = self.sensors.index(collision_dis)
-            two_collisions = False
-            second_wall_index = 0
-            for i in range(len(sensor_copy)):
-                if i != wall_index and sensor_copy[i] - collision_dis < 0.000000001:
-                    second_wall_index = i
-                    two_collisions = True
-            print(two_collisions)
-            distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y,
-                                                                                      walls[wall_index])
-            if collision_dis < distance_vertical or collision_dis < 5:
-                next_x, next_y = self.parallelMove(distance_parallel, theta_wall)
-                # if two_collisions:
-                #     distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y,
-                #                                                                               walls[second_wall_index])
-                #     if distance_parallel != 0:
-                #         next_x, next_y = self.parallelMove(distance_parallel, theta_wall)
-                #     else:
-                #         next_x = self.x
-                #         next_y = self.y
-                # Transfer results from the ICC computation
+            if collision:
+                sensor_copy = self.sensors.copy()
+                sensor_copy.sort()
+                collision_dis = sensor_copy[0]
+                wall_index = self.sensors.index(collision_dis)
+                two_collisions = False
+                second_wall_index = 0
+                for i in range(len(sensor_copy)):
+                    if i != wall_index and sensor_copy[i] - collision_dis < 0.000000001:
+                        second_wall_index = i
+                        two_collisions = True
+                distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y,
+                                                                                          walls[wall_index])
+
+                if collision_dis < distance_vertical or collision_dis < 2:
+                    if distance_parallel == 0.0:
+                        self.stop = True
+                        next_x = self.x
+                        next_y = self.y
+                    elif distance_vertical == 0:
+                        next_x = result[0]
+                        next_y = result[1]
+                    else:
+                        self.stop = False
+                        next_x, next_y = self.parallelMove(distance_parallel, theta_wall)
+                        if two_collisions:
+                            distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y,
+                                                                                                      walls[
+                                                                                                          second_wall_index])
+                            if distance_parallel == 0.0:
+                                self.stop = True
+                                next_x = self.x
+                                next_y = self.y
+                            elif distance_vertical == 0:
+                                print("keep going")
+                            else:
+                                next_x, next_y = self.parallelMove(distance_parallel, theta_wall)
+
+            # Transfer results from the ICC computation
             self.x = next_x
             self.y = next_y
             self.theta = result[2]
@@ -146,7 +160,7 @@ class Robot:
     def rotate(self, angle, r):
         # Rotate the robot at a certain angle from the x-axis
         front_x = self.x + np.cos(angle) * r
-        front_y = self.y + np.sin(angle) * r
+        front_y = self.y + np.sin(-angle) * r
         return front_x, front_y
 
     def distance(self, wall, angle):
@@ -185,7 +199,7 @@ class Robot:
             min_dist_out_wall = 1500
             wall_index = 0
         return min_dist_out_wall, wall_index
-        
+
     def decomposeMovement(self, move_x, move_y, wall):
         theta_wall = slope(wall)
         theta_move = slope([[self.x, self.y], [move_x, move_y]])
@@ -209,8 +223,14 @@ class Robot:
 
     def detectCollision(self, delta_t):
         collision_dis = min(self.sensors)
+        collision = False
         if collision_dis < self.safe_distance:
+            collision = True
             # keep delta_t more than 0.1
             if delta_t > 0.1:
                 delta_t = (collision_dis / self.safe_distance)
-        return delta_t
+            else:
+                delta_t = 0.1
+        else:
+            delta_t = 1
+        return delta_t, collision
