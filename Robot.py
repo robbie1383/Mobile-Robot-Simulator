@@ -1,8 +1,10 @@
 import math
 import random
+from copy import copy
+
 import numpy as np
-import pygame.math
 from pygame.math import Vector2
+
 
 # calculate the slope of the line
 def slope(wall):
@@ -16,49 +18,27 @@ def slope(wall):
 
 class Robot:
 
-    def __init__(self, WIDTH, HEIGHT, size):
-        self.WIDTH = WIDTH
-        self.HEIGHT = HEIGHT
+    def __init__(self, outer_wall, inner_wall, size):
         self.radius = int(size / 2)
-
-        self.x = random.randint(4 + self.radius, WIDTH - self.radius - 4)
-        self.y = random.randint(4 + self.radius, HEIGHT - self.radius - 4)
-
+        self.x, self.y = self.initPosition(outer_wall, inner_wall)
         self.frontX = self.x + self.radius
         self.frontY = self.y
-
         self.Vl = 0
         self.Vr = 0
         self.theta = 0
-        self.speed = 0.05
-        self.closest_wall = []
+        self.speed = 0.5
+        self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
+        self.distance_limit = size
 
-        self.sensors=[]
-        frontSensor1 = Vector2(self.frontX, self.frontY)
-        self.sensors.append(frontSensor1)
-        angle=0
-        for i in range(11):
-            angle=angle+30
-            self.sensors.append(frontSensor1.rotate(angle))
+    def initPosition(self, outer_wall, inner_wall):
+        x = random.randint(outer_wall[0][0] + self.radius, outer_wall[2][0] - self.radius)
+        y = random.randint(outer_wall[0][1] + self.radius, outer_wall[2][1] - self.radius)
+        while (inner_wall[0][0] < x < inner_wall[2][0]) and (inner_wall[0][1] < y < inner_wall[2][1]):
+            x = random.randint(outer_wall[0][0] + self.radius, outer_wall[2][0] - self.radius)
+            y = random.randint(outer_wall[0][1] + self.radius, outer_wall[2][1] - self.radius)
+        return x, y
 
-        '''self.frontSensor1 = Vector2(self.frontX,self.frontY)
-        self.frontSensor2 = self.frontSensor1.rotate(30)
-        self.frontSensor3 = self.frontSensor1.rotate(60)
-        self.frontSensor4 = self.frontSensor1.rotate(90)
-        self.frontSensor5 = self.frontSensor1.rotate(120)
-        self.frontSensor6 = self.frontSensor1.rotate(150)
-        self.frontSensor7 = self.frontSensor1.rotate(180)
-        self.frontSensor8 = self.frontSensor1.rotate(210)
-        self.frontSensor9 = self.frontSensor1.rotate(240)
-        self.frontSensor10 = self.frontSensor1.rotate(270)
-        self.frontSensor11 = self.frontSensor1.rotate(300)
-        self.frontSensor12 = self.frontSensor1.rotate(330)
-        '''
-    def move(self, movement, delta_t):
-        if self.hitWall():
-            # Add collision check
-            print("hit wall")
-
+    def move(self, movement, delta_t, outer_wall, inner_wall):
         # Check keys for movement
         # movement = [w, s, o, l, x, t, g]
 
@@ -93,114 +73,89 @@ class Robot:
                           [0, 0, 1]]),
                 np.transpose(np.array([self.x - ICC[0], self.y - ICC[1], self.theta]))) + np.array(
                 [ICC[0], ICC[1], w * delta_t])).transpose()
-
+            # update  sensors
+            self.sensors, walls = self.distanceToSensors(outer_wall, inner_wall)
+            self.detectCollision(self.sensors, walls, delta_t)
             # Transfer results from the ICC computation
             self.x = result[0]
             self.y = result[1]
             self.theta = result[2]
-            self.rotate(self.theta)
+            self.frontX, self.frontY = self.rotate(self.theta, self.radius)
 
-        return self.Vl, self.Vr, np.round(np.degrees(self.theta) % 360, 2)
+        return self.Vl, self.Vr, np.round(np.degrees(self.theta) % 360, 2), delta_t
 
     def distanceToSensors(self, outer_wall, inner_wall):
-        dist=[]
-        #print("length",Vector2.length(self.sensors[2]))
-        #print("coordinates", self.sensors[0], " ", self.sensors[0])
-        #print(self.frontX," ", self.frontY)
-        #print(self.x," ",self.y)
-        #print(self.radius)
-        for sensor in self.sensors:
-            out_distance=[]
-            in_distance = []
-            for i in range (len(outer_wall)-1):
-                #Out wall line
-                Point1 = [outer_wall[i][0], outer_wall[i][1]]
-                Point2 = [outer_wall[i+1][0], outer_wall[i+1][1]]
-
-
-                a1 = Point2[1]-Point1[1]
-                b1 = Point1[0] + Point2[0]
-                c1 = a1*Point1[0]+b1*Point1[1]
-                
-                #Sensor line
-                Point3 = [self.x, self.y]
-                Point4 = [sensor.x, sensor.y]
-                
-                a2 = Point4[1]-Point3[1]
-                b2 = Point3[0] + Point4[0]
-                c2 = a2*Point3[0]+b2*Point3[1]
-                
-                determinant = a1*b2 - a2*b1
-                
-                if(determinant!=0): #if there is an intersectioin
-                    new_X = (b2*c1 - b1*c2)/determinant # intersection coordinate
-                    new_Y = (a1*c2 - a2*c1)/determinant
-                    out_distance.append(math.sqrt((new_X - sensor.x)**2 + (new_Y - sensor.y)**2 ))
-
-                
-            #print("out distance", out_distance)
-            min_dist_out_wall=min(out_distance) # CLoser wall to sensor 
-            
-            for i in range (len(inner_wall)-1):
-                #  In wall line
-                Point1 = [inner_wall[i][0], inner_wall[i][1]]
-                Point2 = [inner_wall[i+1][0], inner_wall[i+1][1]]
-                
-                a1 = Point2[1]-Point1[1]
-                b1 = Point1[0] + Point2[0]
-                c1 = a1*Point1[0]+b1*Point1[1]
-                
-                #Sensor line
-                Point3 = [self.x, self.y]
-                Point4 = [sensor.x, sensor.y]
-                
-                a2 = Point4[1]-Point3[1]
-                b2 = Point3[0] + Point4[0]
-                c2 = a2*Point3[0]+b2*Point3[1]
-                
-                determinant = a1*b2 - a2*b1
-                
-                if determinant != 0:  #if there is an intersectioin
-                    new_X=(b2*c1 - b1*c2)/determinant
-                    new_Y=(a1*c2 - a2*c1)/determinant
-                    in_distance.append(math.sqrt( (new_X - sensor.x)**2 + (new_Y - sensor.y)**2 ))
-
-            #print("in distance", in_distance)
-            min_dist_in_wall=min(in_distance)  # CLoser wall to sensor       
-
-            if min_dist_out_wall> min_dist_in_wall:
+        dist = []
+        walls = []
+        angle = copy(self.theta)
+        for i in range(12):
+            min_dist_out_wall, wall_index_1 = self.distance(outer_wall, angle)
+            min_dist_in_wall, wall_index_2 = self.distance(inner_wall, angle)
+            if min_dist_out_wall > min_dist_in_wall:
                 '''if the distance to closer out wall is bigger than the distance 
                 to the closer in wall, then keep the in wall distance'''
                 dist.append(min_dist_in_wall)
+                walls.append(inner_wall[wall_index_2])
             else:
                 dist.append(min_dist_out_wall)
-        print("Smallest distance for all sensors", dist)
-        return dist
-    def rotate(self, angle):
+                walls.append(outer_wall[wall_index_1])
+            angle += math.pi / 6
+        return dist, walls
+
+    def rotate(self, angle, r):
         # Rotate the robot at a certain angle from the x-axis
-        self.frontX = self.x + np.cos(angle) * self.radius
-        self.frontY = self.y + np.sin(angle) * self.radius
+        front_x = self.x + np.cos(angle) * r
+        front_y = self.y + np.sin(angle) * r
+        return front_x, front_y
 
-    def hitWall(self):
-        # Check if the robot is hitting the wall
-        return self.x <= 5 + self.radius or self.x >= self.WIDTH - self.radius - 5 \
-               or self.y <= 5 + self.radius or self.y >= self.HEIGHT - self.radius - 5
+    def detectCollision(self, dist, wall, delta_t):
+        collision_distance = min(dist)
+        collision_wall = dist.index(collision_distance)
+        if collision_distance < self.distance_limit:
+            delta_t = delta_t * 2
+        return delta_t
 
-    def detectCollision(self, outer_wall, inner_wall):
-        distance_to_wall = []
-        for i in range(len(outer_wall) - 1):
-            a, b = outer_wall[i]
-            c, d = outer_wall[i + 1]
-            if a == c:
-                distance = abs(self.x - a)
-                distance_to_wall.append(distance)
-            else:
-                distance = abs(self.y - b)
-                distance_to_wall.append(distance)
+    def distance(self, wall, angle):
+        def right_intersection(point, wall_point1, wall_point2, sensor_start, sensor_end):
+            x, y = point
+            right = (x - wall_point1[0]) * (x - wall_point2[0]) <= 0 and \
+                    (y - wall_point1[1]) * (y - wall_point2[1]) <= 0 and \
+                    (x - sensor_start[0]) * (sensor_end[0] - sensor_start[0]) >= 0 and \
+                    (y - sensor_start[1]) * (sensor_end[1] - sensor_start[1]) >= 0
+            return right
 
-        ds = distance_to_wall.copy()
-        ds.sort()
-        shortest = ds[0]
-        index = distance_to_wall.index(ds[0])
-        self.closest_wall = [outer_wall[index], outer_wall[index + 1]]
-        return shortest
+        dist = []
+        for i in range(len(wall) - 1):
+            # Out wall line
+            point1 = wall[i]
+            point2 = wall[i + 1]
+            a1 = point2[1] - point1[1]
+            b1 = point1[0] - point2[0]
+            c1 = a1 * point1[0] + b1 * point1[1]
+
+            # Sensor line
+            point3 = [self.x, self.y]
+            point4 = Vector2(self.rotate(angle, self.radius))
+            a2 = point4[1] - point3[1]
+            b2 = point3[0] - point4[0]
+
+            c2 = a2 * point3[0] + b2 * point3[1]
+            determinant = a1 * b2 - a2 * b1
+
+            if determinant != 0:  # if there is an intersectioin
+                new_x = -(b1 * c2 - b2 * c1) / determinant  # intersection coordinate
+                new_y = (a1 * c2 - a2 * c1) / determinant
+                if abs(round(new_x) - new_x) < 0.00000001:
+                    new_x = round(new_x)
+                if abs(round(new_y) - new_y) < 0.00000001:
+                    new_y = round(new_y)
+                # make sure intersection is in front of the sensor
+                if right_intersection((new_x, new_y), point1, point2, point3, point4):
+                    dist.append(math.sqrt((new_x - point4[0]) ** 2 + (new_y - point4[1]) ** 2))
+        if len(dist):
+            min_dist_out_wall = min(dist)  # CLoser wall to sensor
+            wall_index = dist.index(min_dist_out_wall)
+        else:
+            min_dist_out_wall = 1500
+            wall_index = 0
+        return min_dist_out_wall, wall_index

@@ -1,8 +1,11 @@
+import copy
+import math
+
 import pygame
 
 from Robot import Robot
 
-SEV = 5  # SCREEN_EDGE_VACANCY
+SEV = 15  # SCREEN_EDGE_VACANCY
 WIDTH = 800
 HEIGHT = 800
 
@@ -25,12 +28,13 @@ class Simulation:
 
     def __init__(self):
         pygame.init()
-        self.robot = Robot(WIDTH, HEIGHT, 101)
+        self.outer_wall = [(SEV, SEV), (SEV, WIDTH - SEV), (WIDTH - SEV, HEIGHT - SEV), (HEIGHT - SEV, SEV), (SEV, SEV)]
+        self.inner_wall = [(350, 350), (350, 450), (450, 450), (450, 350), (350, 350)]
+        self.robot = Robot(self.outer_wall, self.inner_wall, 100)
         self.screen = pygame.display.set_mode((WIDTH + 350, HEIGHT))
         pygame.display.set_caption("Modular Robot Simulator")
         self.font = pygame.font.SysFont("Pokemon GB.ttf", 50)
-        self.outer_wall = [(SEV, SEV), (SEV, WIDTH - SEV), (WIDTH - SEV, HEIGHT - SEV), (HEIGHT - SEV, SEV), (SEV, SEV)]
-        self.inner_wall = [(350, 350), (350, 450), (450, 450), (450, 350), (350, 350)]
+        self.sensor_font = pygame.font.SysFont("Pokemon GB.ttf", 20)
         self.running = True
         self.clock = pygame.time.Clock()
 
@@ -42,6 +46,16 @@ class Simulation:
         pygame.draw.aalines(self.screen, DARKGRAY, True, self.inner_wall, 50)
         pygame.draw.circle(self.screen, PURPLE, (self.robot.x, self.robot.y), 50)
         pygame.draw.line(self.screen, BLACK, (self.robot.x, self.robot.y), (self.robot.frontX, self.robot.frontY), 1)
+
+        # display sensors
+        angle = copy.copy(self.robot.theta)
+        sensors = self.robot.sensors
+        for i in range(12):
+            x, y = self.robot.rotate(angle, self.robot.radius + 10)
+            x = x - 8
+            y = y - 8
+            self.screen.blit(self.sensor_font.render(str(round(sensors[i])), True, BLACK), (x, y))
+            angle += math.pi / 6
 
         # Fill in keys
         pygame.draw.rect(self.screen, getColour(keys[0]), pygame.Rect(WIDTH + 50, HEIGHT / 2 - 100, 50, 50))
@@ -69,10 +83,10 @@ class Simulation:
         pygame.display.flip()
 
     def run(self):
-        delta_t = 400
+        delta_t = 0.2
         while self.running:
-            self.clock.tick(delta_t)
-            keys, velocities = self.update(1 / delta_t)
+            self.clock.tick(round(1 / delta_t))
+            keys, velocities = self.update(delta_t)
             self.show(keys, velocities)
 
     def update(self, delta_t):
@@ -86,9 +100,9 @@ class Simulation:
         keys = pygame.key.get_pressed()
         movement = [keys[pygame.K_w], keys[pygame.K_s], keys[pygame.K_o], keys[pygame.K_l], keys[pygame.K_x],
                     keys[pygame.K_t], keys[pygame.K_g]]
-        velocities = self.robot.move(movement, delta_t)
-        distance = self.robot.detectCollision(self.outer_wall, self.inner_wall)
-        dist = self.robot.distanceToSensors(self.outer_wall, self.inner_wall)
+
+        velocities = self.robot.move(movement, delta_t, self.outer_wall, self.inner_wall)
+
         return movement, velocities
 
     def stop(self):
