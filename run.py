@@ -83,9 +83,9 @@ class Simulation:
         pygame.display.flip()
 
     def run(self):
-        delta_t = 1
+        delta_t = 0.01
         while self.running:
-            self.clock.tick(round(60 / delta_t))
+            self.clock.tick(100)
             keys, velocities = self.update(delta_t)
             self.show(keys, velocities)
             delta_t = velocities[3]
