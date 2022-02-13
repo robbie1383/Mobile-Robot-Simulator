@@ -53,7 +53,6 @@ class Robot:
         return x, y
 
     def move(self, movement, delta_t, outer_wall, inner_wall):
-        new_theta = self.theta
         # Check keys for movement
         # movement = [w, s, o, l, x, t, g]
 
@@ -78,7 +77,8 @@ class Robot:
                 # self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
                 # self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
                 next_x = self.x + ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
-                next_y = self.y + ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+                next_y = self.y - ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+                new_theta = self.theta + (self.Vr - self.Vl) / (2 * self.radius) * delta_t
             else:
                 R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
                 w = (self.Vr - self.Vl) / (self.radius * 2)
@@ -97,7 +97,6 @@ class Robot:
             # detect collision
             delta_t, collision = self.detectCollision(delta_t, next_x, next_y)
             # handle collision
-
             next_x, next_y = self.handleCollision(next_x, next_y, walls)
             # Transfer results from the ICC computation
             self.x = next_x
@@ -105,7 +104,7 @@ class Robot:
             self.theta = new_theta
             self.frontX, self.frontY = self.rotate(self.theta, self.radius)
 
-        return self.Vl, self.Vr, np.round(np.degrees(self.theta) % 360, 2), delta_t
+        return self.Vl, self.Vr, np.round(np.degrees(self.theta), 2), delta_t
 
     def distanceToSensors(self, outer_wall, inner_wall):
         dist = []
@@ -208,7 +207,7 @@ class Robot:
             move = abs(next_x - self.x)
         collision_dis = min(self.sensors)
         collision = False
-        if collision_dis < move:
+        if collision_dis < move or collision_dis < 1:
             collision = True
             if delta_t > 0.1:
                 delta_t = delta_t * (collision_dis / move)
@@ -240,7 +239,7 @@ class Robot:
             self.decomposeMovement(next_x, next_y, second_wall)
         collision_dis = self.distance_to_wall(next_x, next_y, first_wall)
         second_collision_dis = self.distance_to_wall(next_x, next_y, second_wall)
-        print(distance_vertical_first, first_wall, distance_parallel_first)
+      # print(distance_vertical_first, first_wall, distance_parallel_first)
         if collision_dis < 2 and second_collision_dis < 2:
             if distance_vertical_first > -0.1 or distance_vertical_second > -0.1:
                 # stop at the corner
