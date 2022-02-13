@@ -37,7 +37,7 @@ class Robot:
         self.Vl = 0
         self.Vr = 0
         self.theta = 0
-        self.speed = 0.5
+        self.speed = 0.1
         self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
         self.safe_distance = 5
         self.stop = False
@@ -116,16 +116,16 @@ class Robot:
         walls = []
         angle = copy(self.theta)
         for i in range(12):
-            min_dist_out_wall, wall_index_1 = self.distance(outer_wall, angle)
-            min_dist_in_wall, wall_index_2 = self.distance(inner_wall, angle)
+            min_dist_out_wall, wall_out = self.distance(outer_wall, angle)
+            min_dist_in_wall, wall_in = self.distance(inner_wall, angle)
             if min_dist_out_wall > min_dist_in_wall:
                 '''if the distance to closer out wall is bigger than the distance 
                 to the closer in wall, then keep the in wall distance'''
                 dist.append(min_dist_in_wall)
-                walls.append([inner_wall[wall_index_2], inner_wall[wall_index_2 + 1]])
+                walls.append(wall_in)
             else:
                 dist.append(min_dist_out_wall)
-                walls.append([outer_wall[wall_index_1], outer_wall[wall_index_1 + 1]])
+                walls.append(wall_out)
             angle += math.pi / 6
         return dist, walls
 
@@ -137,6 +137,7 @@ class Robot:
 
     def distance(self, wall, angle):
         dist = []
+        select_wall = []
         for i in range(len(wall) - 1):
             # Out wall line
             point1 = wall[i]
@@ -164,21 +165,23 @@ class Robot:
                 # make sure intersection is in front of the sensor
                 if right_intersection((new_x, new_y), point1, point2, point3, point4):
                     dist.append(math.sqrt((new_x - point4[0]) ** 2 + (new_y - point4[1]) ** 2))
+                    select_wall.append([point1, point2])
+        wall = []
         if len(dist):
             min_dist_out_wall = min(dist)  # CLoser wall to sensor
             wall_index = dist.index(min_dist_out_wall)
+            wall = select_wall[wall_index]
         else:
             min_dist_out_wall = 1500
-            wall_index = 0
-        return min_dist_out_wall, wall_index
+        return min_dist_out_wall, wall
 
     def decomposeMovement(self, move_x, move_y, wall):
         theta_wall = slope(wall)
         theta_move = slope([[self.x, self.y], [move_x, move_y]])
         theta_wall_move = theta_move - theta_wall
         move_distance = ((move_x - self.x) ** 2 + (move_y - self.y) ** 2) ** 0.5
-        distance_parallel = round(abs(move_distance * np.sin(theta_wall_move)), 1)
-        distance_vertical = round(move_distance * np.cos(theta_wall_move), 1)
+        distance_parallel = abs(move_distance * np.sin(theta_wall_move * math.pi / 180))
+        distance_vertical = move_distance * np.cos(theta_wall_move * math.pi / 180)
         return distance_parallel, distance_vertical, theta_wall
 
     def parallelMove(self, distance_parallel, theta_wall):
@@ -189,7 +192,6 @@ class Robot:
         elif theta_wall == 0:
             x = self.x + distance_parallel
         else:
-            print("ssss")
             y = self.y + distance_parallel * np.cos(theta_wall * math.pi / 180)
             x = self.x + distance_parallel * np.sin(theta_wall * math.pi / 180)
         return x, y
@@ -219,17 +221,18 @@ class Robot:
         second_wall_index = 0
 
         # get the second-closest wall if robot at the corner
-        for i in range(len(sensor_copy)):
-            if i != wall_index and sensor_copy[i] - collision_dis < 0.000000001:
+        for i in range(len(self.sensors)):
+            if i != wall_index and self.sensors[i] - collision_dis < 0.000000001:
                 second_wall_index = i
                 two_collisions = True
         # decompose Movement to parallel and vertical by the wall
         distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y, walls[wall_index])
 
         # if robot vertical speed to the wall and may run through the wall, handle the collision
-        if collision_dis < distance_vertical or collision_dis < 1:
+        if collision_dis < distance_vertical or collision_dis < 3:
             if distance_parallel == 0.0:
                 self.stop = True
+                print(self.stop, distance_parallel)
                 next_x = self.x
                 next_y = self.y
             elif distance_vertical != 0:
