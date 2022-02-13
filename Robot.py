@@ -41,6 +41,7 @@ class Robot:
         self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
         self.safe_distance = 5
         self.stop = False
+        self.last_wall = []
 
     def initPosition(self, outer_wall, inner_wall):
         x = random.randint(outer_wall[0][0] + self.radius, outer_wall[2][0] - self.radius)
@@ -52,6 +53,9 @@ class Robot:
         return x, y
 
     def move(self, movement, delta_t, outer_wall, inner_wall):
+        next_x = 0
+        next_y = 0
+        new_theta = self.theta
         # Check keys for movement
         # movement = [w, s, o, l, x, t, g]
 
@@ -74,39 +78,34 @@ class Robot:
                 R = 10000
                 w = 0
                 if not self.stop:
-                    self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
-                    self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+                    # self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
+                    # self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+                    next_x = self.x + ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
+                    next_y = self.y + ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
             else:
                 R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
                 w = (self.Vr - self.Vl) / (self.radius * 2)
-
-            # Compute ICC
-            ICC = [self.x - R * np.sin(self.theta), self.y + R * np.cos(self.theta)]
-            result = np.transpose(np.matmul(
-                np.array([[np.cos(w * delta_t), -np.sin(w * delta_t), 0],
-                          [np.sin(w * delta_t), np.cos(w * delta_t), 0],
-                          [0, 0, 1]]),
-                np.transpose(np.array([self.x - ICC[0], self.y - ICC[1], self.theta]))) + np.array(
-                [ICC[0], ICC[1], w * delta_t])).transpose()
+                # Compute ICC
+                ICC = [self.x - R * np.sin(self.theta), self.y + R * np.cos(self.theta)]
+                result = np.transpose(np.matmul(
+                    np.array([[np.cos(w * delta_t), -np.sin(w * delta_t), 0],
+                              [np.sin(w * delta_t), np.cos(w * delta_t), 0],
+                              [0, 0, 1]]),
+                    np.transpose(np.array([self.x - ICC[0], self.y - ICC[1], self.theta]))) + np.array(
+                    [ICC[0], ICC[1], w * delta_t])).transpose()
+                next_x, next_y, new_theta = result[0], result[1], result[2]
             # update  sensors
             self.sensors, walls = self.distanceToSensors(outer_wall, inner_wall)
 
             # detect collision
             delta_t, collision = self.detectCollision(delta_t)
-            # next_x = result[0]
-            # next_y = result[1]
-            next_x = round(result[0], 1)
-            next_y = round(result[1], 1)
             # handle collision
             if collision:
                 next_x, next_y = self.handleCollision(next_x, next_y, walls)
-            else:
-                next_x = result[0]
-                next_y = result[1]
             # Transfer results from the ICC computation
             self.x = next_x
             self.y = next_y
-            self.theta = result[2]
+            self.theta = new_theta
             self.frontX, self.frontY = self.rotate(self.theta, self.radius)
 
         return self.Vl, self.Vr, np.round(np.degrees(self.theta) % 360, 2), delta_t
@@ -180,8 +179,8 @@ class Robot:
         theta_move = slope([[self.x, self.y], [move_x, move_y]])
         theta_wall_move = theta_move - theta_wall
         move_distance = ((move_x - self.x) ** 2 + (move_y - self.y) ** 2) ** 0.5
-        distance_parallel = abs(move_distance * np.sin(theta_wall_move * math.pi / 180))
-        distance_vertical = move_distance * np.cos(theta_wall_move * math.pi / 180)
+        distance_parallel = abs(move_distance * np.cos(theta_wall_move * math.pi / 180))
+        distance_vertical = move_distance * np.sin(theta_wall_move * math.pi / 180)
         return distance_parallel, distance_vertical, theta_wall
 
     def parallelMove(self, distance_parallel, theta_wall):
@@ -219,20 +218,22 @@ class Robot:
         wall_index = self.sensors.index(collision_dis)
         two_collisions = False
         second_wall_index = 0
-
+        first_wall = walls[wall_index]
         # get the second-closest wall if robot at the corner
         for i in range(len(self.sensors)):
             if i != wall_index and self.sensors[i] - collision_dis < 0.000000001:
                 second_wall_index = i
                 two_collisions = True
         # decompose Movement to parallel and vertical by the wall
-        distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y, walls[wall_index])
-
+        if two_collisions:
+            first_wall = self.last_wall
+        else:
+            self.last_wall = first_wall
+        distance_parallel, distance_vertical, theta_wall = self.decomposeMovement(next_x, next_y, first_wall)
         # if robot vertical speed to the wall and may run through the wall, handle the collision
         if collision_dis < distance_vertical or collision_dis < 3:
             if distance_parallel == 0.0:
                 self.stop = True
-                print(self.stop, distance_parallel)
                 next_x = self.x
                 next_y = self.y
             elif distance_vertical != 0:
