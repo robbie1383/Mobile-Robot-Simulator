@@ -1,6 +1,6 @@
 import copy
 import math
-
+import numpy as np
 import pygame
 
 from Robot import Robot
@@ -74,16 +74,16 @@ class Simulation:
         self.screen.blit(self.font.render("x", 105, WHITE), (WIDTH + 165, HEIGHT / 2 + 105))
 
         # Display velocities
-        left = "V left = " + str(velocities[0])
+        left = "V left = " + str(np.round(velocities[0],2))
         self.screen.blit(self.font.render(left, 105, BLACK), (WIDTH + 50, HEIGHT / 2 - 305))
-        right = "V right = " + str(velocities[1])
+        right = "V right = " + str(np.round(velocities[1],2))
         self.screen.blit(self.font.render(right, 105, BLACK), (WIDTH + 50, HEIGHT / 2 - 255))
-        theta = "θ = " + str(velocities[2]) + "°"
+        theta = "θ = " + str(np.round(np.degrees(velocities[2])% 360, 2)) + "°"
         self.screen.blit(self.font.render(theta, 105, BLACK), (WIDTH + 50, HEIGHT / 2 - 205))
         pygame.display.flip()
 
     def run(self):
-        delta_t = 0.3
+        delta_t = 0.01
         while self.running:
             self.clock.tick(50)
             keys, velocities = self.update(delta_t)
