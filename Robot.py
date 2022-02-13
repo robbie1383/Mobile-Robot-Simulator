@@ -209,7 +209,9 @@ class Robot:
         #     delta_t = 0.1
         return delta_t, collision
 
-    def handleCollision(self, next_x, next_y, walls):
+    def handleCollision(self, move_x, move_y, walls):
+        next_x = move_x
+        next_y = move_y
         # get the closest distance
         sensors_copy = self.sensors.copy()
         sensors_copy.sort()
@@ -220,6 +222,14 @@ class Robot:
         second_wall_index = self.sensors.index(second_collision_dis)
         first_wall = walls[wall_index]
         second_wall = walls[second_wall_index]
+        for i in range(len(walls)):
+            if first_wall == second_wall:
+                second_collision_dis = sensors_copy[i + 1]
+                second_wall_index = self.sensors.index(second_collision_dis)
+                second_wall = walls[second_wall_index]
+            else:
+                break
+
         distance_parallel_first, distance_vertical_first, theta_wall_first = \
             self.decomposeMovement(next_x, next_y, first_wall)
         distance_parallel_second, distance_vertical_second, theta_wall_second = \
@@ -246,8 +256,7 @@ class Robot:
                 else:
                     next_x, next_y = self.parallelMove(distance_parallel_second, theta_wall_second)
             else:
-                print("move")
-                print(self.x, self.y, next_x, next_y, distance_vertical_first, distance_vertical_second)
+                print("move out the line")
         elif collision_dis < 4 or collision_dis < distance_vertical_first:
             if distance_parallel_first == 0.0:
                 self.stop = True
@@ -263,5 +272,5 @@ class Robot:
             else:
                 next_x, next_y = self.parallelMove(distance_parallel_second, theta_wall_second)
         else:
-            print(self.x, self.y, next_x, next_y)
+            print(second_collision_dis, collision_dis, distance_vertical_second, distance_vertical_first)
         return next_x, next_y
