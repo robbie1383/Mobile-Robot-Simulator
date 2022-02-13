@@ -37,7 +37,7 @@ class Robot:
         self.Vl = 0
         self.Vr = 0
         self.theta = 0
-        self.speed = 0.1
+        self.speed = 3
         self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
         self.safe_distance = 2
         self.stop = False
@@ -95,7 +95,7 @@ class Robot:
             self.sensors, walls = self.distanceToSensors(outer_wall, inner_wall)
 
             # detect collision
-            delta_t, collision = self.detectCollision(delta_t)
+            delta_t, collision = self.detectCollision(delta_t, next_x, next_y)
             # handle collision
 
             next_x, next_y = self.handleCollision(next_x, next_y, walls)
@@ -176,7 +176,15 @@ class Robot:
         theta_move = slope([[self.x, self.y], [move_x, move_y]])
         theta_wall_move = theta_wall - theta_move
         move_distance = ((move_x - self.x) ** 2 + (move_y - self.y) ** 2) ** 0.5
-        distance_parallel = move_distance * np.cos(theta_wall_move * math.pi / 180)
+        distance_parallel = abs(move_distance * np.cos(theta_wall_move * math.pi / 180))
+
+        if theta_wall == 90:
+            if move_y < self.y:
+                distance_parallel = -distance_parallel
+        if theta_wall == 0:
+            if move_x < self.x:
+                distance_parallel = -distance_parallel
+
         distance_vertical = move_distance * np.sin(theta_wall_move * math.pi / 180)
         return distance_parallel, distance_vertical, theta_wall
 
@@ -192,18 +200,18 @@ class Robot:
             x = self.x + distance_parallel * np.sin(theta_wall * math.pi / 180)
         return x, y
 
-    def detectCollision(self, delta_t):
+    def detectCollision(self, delta_t, next_x, next_y):
+        move = 0
+        if next_x == self.x:
+            move = abs(next_y - self.y)
+        elif next_y == self.y:
+            move = abs(next_x - self.x)
         collision_dis = min(self.sensors)
         collision = False
-        if collision_dis < self.safe_distance:
+        if collision_dis < move:
             collision = True
-            # keep delta_t more than 0.1
-            # if delta_t > 0.1:
-            #     delta_t = (collision_dis / self.safe_distance)
-            # else:
-            #     delta_t = 0.1
-        # else:
-        #     delta_t = 0.1
+            if delta_t > 0.1:
+                delta_t = delta_t * (collision_dis / move)
         return delta_t, collision
 
     def handleCollision(self, move_x, move_y, walls):
@@ -232,8 +240,9 @@ class Robot:
             self.decomposeMovement(next_x, next_y, second_wall)
         collision_dis = self.distance_to_wall(next_x, next_y, first_wall)
         second_collision_dis = self.distance_to_wall(next_x, next_y, second_wall)
+        print(distance_vertical_first, first_wall, distance_parallel_first)
         if collision_dis < 2 and second_collision_dis < 2:
-            if distance_vertical_first > 0 or distance_vertical_second > 0:
+            if distance_vertical_first > -0.1 or distance_vertical_second > -0.1:
                 # stop at the corner
                 next_x = self.x
                 next_y = self.y
