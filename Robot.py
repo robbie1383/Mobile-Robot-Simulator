@@ -39,7 +39,7 @@ class Robot:
         self.theta = 0
         self.speed = 0.1
         self.sensors, _ = self.distanceToSensors(outer_wall, inner_wall)
-        self.safe_distance = 5
+        self.safe_distance = 2
         self.stop = False
         self.last_wall = []
 
@@ -53,8 +53,6 @@ class Robot:
         return x, y
 
     def move(self, movement, delta_t, outer_wall, inner_wall):
-        next_x = 0
-        next_y = 0
         new_theta = self.theta
         # Check keys for movement
         # movement = [w, s, o, l, x, t, g]
@@ -77,11 +75,10 @@ class Robot:
             if self.Vr == self.Vl:
                 R = 10000
                 w = 0
-                if not self.stop:
-                    # self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
-                    # self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
-                    next_x = self.x + ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
-                    next_y = self.y + ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+                # self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
+                # self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
+                next_x = self.x + ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
+                next_y = self.y + ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
             else:
                 R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
                 w = (self.Vr - self.Vl) / (self.radius * 2)
@@ -100,8 +97,8 @@ class Robot:
             # detect collision
             delta_t, collision = self.detectCollision(delta_t)
             # handle collision
-            if collision:
-                next_x, next_y = self.handleCollision(next_x, next_y, walls)
+
+            next_x, next_y = self.handleCollision(next_x, next_y, walls)
             # Transfer results from the ICC computation
             self.x = next_x
             self.y = next_y
@@ -229,48 +226,45 @@ class Robot:
                 second_wall = walls[second_wall_index]
             else:
                 break
-
         distance_parallel_first, distance_vertical_first, theta_wall_first = \
             self.decomposeMovement(next_x, next_y, first_wall)
         distance_parallel_second, distance_vertical_second, theta_wall_second = \
-            self.decomposeMovement(next_x, next_y, first_wall)
-
-        if (collision_dis < 4 and second_collision_dis < 4) or (
-                collision_dis < distance_vertical_first and second_collision_dis < distance_vertical_second):
-            if distance_vertical_first > 0 and distance_vertical_second > 0:
-                self.stop = True
+            self.decomposeMovement(next_x, next_y, second_wall)
+        collision_dis = self.distance_to_wall(next_x, next_y, first_wall)
+        second_collision_dis = self.distance_to_wall(next_x, next_y, second_wall)
+        if collision_dis < 2 and second_collision_dis < 2:
+            if distance_vertical_first > 0 or distance_vertical_second > 0:
+                # stop at the corner
                 next_x = self.x
                 next_y = self.y
-            elif distance_vertical_first > 0:
-                if distance_parallel_first == 0.0:
-                    self.stop = True
-                    next_x = self.x
-                    next_y = self.y
-                else:
-                    next_x, next_y = self.parallelMove(distance_parallel_first, theta_wall_first)
-            elif distance_vertical_second > 0:
-                if distance_parallel_second == 0.0:
-                    self.stop = True
-                    next_x = self.x
-                    next_y = self.y
-                else:
-                    next_x, next_y = self.parallelMove(distance_parallel_second, theta_wall_second)
-            else:
-                print("move out the line")
-        elif collision_dis < 4 or collision_dis < distance_vertical_first:
+        elif collision_dis < 3 and 0 < distance_vertical_first:
             if distance_parallel_first == 0.0:
-                self.stop = True
+                # stop vertical to the wall
                 next_x = self.x
                 next_y = self.y
             else:
                 next_x, next_y = self.parallelMove(distance_parallel_first, theta_wall_first)
-        elif second_collision_dis < 4 or second_collision_dis < distance_vertical_second:
+        elif second_collision_dis < 3 and 0 < distance_vertical_second:
             if distance_parallel_second == 0.0:
-                self.stop = True
+                # stop vertical to the wall
                 next_x = self.x
                 next_y = self.y
             else:
                 next_x, next_y = self.parallelMove(distance_parallel_second, theta_wall_second)
         else:
-            print(second_collision_dis, collision_dis, distance_vertical_second, distance_vertical_first)
+            next_x, next_y = move_x, move_y
         return next_x, next_y
+
+    def distance_to_wall(self, x, y, wall):
+        x1, y1 = wall[0]
+        x2, y2 = wall[1]
+        d1 = ((x1 - x) ** 2 + (y1 - y) ** 2) ** 0.5 - self.radius
+        d2 = ((x2 - x) ** 2 + (y2 - y) ** 2) ** 0.5 - self.radius
+        if x1 == x2 and (y - y1) * (y - y2) <= 0:
+            vertical_dis = abs(x - x1) - self.radius
+            return vertical_dis
+        elif y1 == y2 and (x - x1) * (x - x2) <= 0:
+            vertical_dis = abs(y - y1) - self.radius
+            return vertical_dis
+        else:
+            return min(d1, d2)
