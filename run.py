@@ -29,7 +29,7 @@ class Simulation:
     def __init__(self):
         pygame.init()
         self.outer_wall = [(SEV, SEV), (SEV, WIDTH - SEV), (WIDTH - SEV, HEIGHT - SEV), (HEIGHT - SEV, SEV), (SEV, SEV)]
-        self.inner_wall = [(350, 350), (350, 450), (450, 450), (450, 350), (350, 350)]
+        self.inner_wall = [(300, 400), (400, 500), (500, 400), (400, 300), (300, 400)]
         self.robot = Robot(self.outer_wall, self.inner_wall, 100)
         self.screen = pygame.display.set_mode((WIDTH + 350, HEIGHT))
         pygame.display.set_caption("Modular Robot Simulator")
