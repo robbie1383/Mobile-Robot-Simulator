@@ -78,7 +78,7 @@ class Simulation:
         self.screen.blit(self.font.render(left, 105, BLACK), (WIDTH + 50, HEIGHT / 2 - 305))
         right = "V right = " + str(np.round(velocities[1],2))
         self.screen.blit(self.font.render(right, 105, BLACK), (WIDTH + 50, HEIGHT / 2 - 255))
-        theta = "θ = " + str(np.round(np.degrees(velocities[2])% 360, 2)) + "°"
+        theta = "θ = " + str(np.round(velocities[2], 2)) + "°"
         self.screen.blit(self.font.render(theta, 105, BLACK), (WIDTH + 50, HEIGHT / 2 - 205))
         pygame.display.flip()
 

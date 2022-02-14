@@ -72,10 +72,6 @@ class Robot:
         if self.Vr != 0 or self.Vl != 0:
             # Make sure not to get a division by zero when velocities are the same
             if self.Vr == self.Vl:
-                R = 10000
-                w = 0
-                # self.x += ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
-                # self.y += ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
                 next_x = self.x + ((self.Vl + self.Vr) / 2) * np.cos(self.theta) * delta_t
                 next_y = self.y - ((self.Vl + self.Vr) / 2) * np.sin(self.theta) * delta_t
                 new_theta = self.theta + (self.Vr - self.Vl) / (2 * self.radius) * delta_t
@@ -150,7 +146,7 @@ class Robot:
             c2 = a2 * point3[0] + b2 * point3[1]
             determinant = a1 * b2 - a2 * b1
 
-            if abs(determinant) > 0.00000001:  # if there is an intersectioin
+            if abs(determinant) > 0.00000001:  # if there is an intersection
                 new_x = -(b1 * c2 - b2 * c1) / determinant  # intersection coordinate
                 new_y = (a1 * c2 - a2 * c1) / determinant
                 if abs(round(new_x) - new_x) < 0.00000001:
@@ -177,33 +173,33 @@ class Robot:
         move_distance = ((move_x - self.x) ** 2 + (move_y - self.y) ** 2) ** 0.5
         distance_parallel = abs(move_distance * np.cos(theta_wall_move * math.pi / 180))
         distance_vertical = -abs(move_distance * np.sin(theta_wall_move * math.pi / 180))
-        paraller_x = distance_parallel
-        paraller_y = distance_parallel
+        parallel_x = distance_parallel
+        parallel_y = distance_parallel
         inters_x, inters_y = self.get_intersection((self.x, self.y), (move_x, move_y), wall[0], wall[1])
         if (move_x - inters_x) * (move_x - self.x) <= 0 and (move_y - inters_y) * (move_y - self.y) <= 0:
             distance_vertical = -distance_vertical
 
         if theta_wall == 90:
             if move_y < self.y:
-                paraller_x = -distance_parallel
-                paraller_y = -distance_parallel
+                parallel_x = -distance_parallel
+                parallel_y = -distance_parallel
         if theta_wall == 0:
             if move_x < self.x:
-                paraller_x = -distance_parallel
-                paraller_y = -distance_parallel
+                parallel_x = -distance_parallel
+                parallel_y = -distance_parallel
         elif theta_wall < 0:
             if abs(theta_move) < 90:
-                paraller_y = -distance_parallel
+                parallel_y = -distance_parallel
             else:
-                paraller_x = -distance_parallel
+                parallel_x = -distance_parallel
         elif 90 > theta_wall > 0:
             if abs(theta_move) < 90:
-                paraller_x = -distance_parallel
-                paraller_y = -distance_parallel
+                parallel_x = -distance_parallel
+                parallel_y = -distance_parallel
 
-        return paraller_x, paraller_y, distance_vertical, theta_wall
+        return parallel_x, parallel_y, distance_vertical, theta_wall
 
-    def parallelMove(self, distance_x, distance_y, theta_wall, move_x, move_y):
+    def parallelMove(self, distance_x, distance_y, theta_wall):
         x = self.x
         y = self.y
         if theta_wall == 90:
@@ -249,9 +245,9 @@ class Robot:
                 second_wall = walls[second_wall_index]
             else:
                 break
-        paraller_x_1, paraller_y_1, distance_vertical_first, theta_wall_first = \
+        parallel_x_1, parallel_y_1, distance_vertical_first, theta_wall_first = \
             self.decomposeMovement(next_x, next_y, first_wall)
-        paraller_x_2, paraller_y_2, distance_vertical_second, theta_wall_second = \
+        parallel_x_2, parallel_y_2, distance_vertical_second, theta_wall_second = \
             self.decomposeMovement(next_x, next_y, second_wall)
         if collision_dis < abs(distance_vertical_first) and second_collision_dis < abs(distance_vertical_second):
             if distance_vertical_first > 0 or distance_vertical_second > 0:
@@ -259,12 +255,12 @@ class Robot:
                 next_x = self.x
                 next_y = self.y
         elif collision_dis < abs(distance_vertical_first) and 0 < distance_vertical_first:
-            if paraller_x_1 == 0.0:
+            if parallel_x_1 == 0.0:
                 # stop vertical to the wall
                 next_x = self.x
                 next_y = self.y
             else:
-                next_x, next_y = self.parallelMove(paraller_x_1, paraller_y_1, theta_wall_first, next_x, next_y)
+                next_x, next_y = self.parallelMove(parallel_x_1, parallel_y_1, theta_wall_first)
 
         if next_x < 85 or next_x > 750 or next_y < 85 or next_y > 750:
             next_x = self.x
