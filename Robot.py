@@ -79,7 +79,7 @@ class Robot:
                 R = self.radius * (self.Vl + self.Vr) / (self.Vr - self.Vl)
                 w = (self.Vr - self.Vl) / (self.radius * 2)
                 # Compute ICC
-                ICC = [self.x - R * np.sin(self.theta), self.y + R * np.cos(self.theta)]
+                ICC = [self.x - R * np.sin(-self.theta), self.y + R * np.cos(self.theta)]
                 result = np.transpose(np.matmul(
                     np.array([[np.cos(w * delta_t), -np.sin(w * delta_t), 0],
                               [np.sin(w * delta_t), np.cos(w * delta_t), 0],
